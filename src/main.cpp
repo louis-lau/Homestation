@@ -32,6 +32,7 @@ HASensor sensorLat("Lat");
 HASensor sensorTemperature("Temperature");
 HASensor sensorHumidity("Humidity");
 HASensor sensorSignalstrength("Signal_strength");
+HASensor sensorLight("Illuminance");
 
 
 unsigned long lastTemperatureSend = millis();
@@ -76,6 +77,7 @@ void setup() {
   String latName = student_id + " Lat";
   String temperatureName = student_id + " Temperature";
   String humidityName = student_id + " Humidity";
+  String lightName = student_id + " Illuminance";
   String signalstrengthName = student_id + " Signal Strength";
 
   //Set main device name
@@ -103,6 +105,10 @@ void setup() {
   sensorSignalstrength.setName(signalstrengthName.c_str());
   sensorSignalstrength.setDeviceClass("signal_strength");
   sensorSignalstrength.setUnitOfMeasurement("dBm");
+
+  sensorLight.setName(lightName.c_str());
+  sensorLight.setDeviceClass("illuminance");
+  sensorLight.setUnitOfMeasurement("%");
 
   mqtt.begin(BROKER_ADDR, BROKER_USERNAME, BROKER_PASSWORD);
 
@@ -179,6 +185,7 @@ void loop() {
   hall = !digitalRead(D3);
 
   if ((millis() - lastTemperatureSend) > 10000) {
+    sensorLight.setValue(light);
     sensorTemperature.setValue(temperature);
     sensorHumidity.setValue(humidity);
     sensorSignalstrength.setValue(signalstrength);
