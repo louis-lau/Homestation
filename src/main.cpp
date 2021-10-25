@@ -61,17 +61,21 @@ void drawDisplay(String temperature, String humidity, String light) {
 
   display.setTextSize(1);             // Draw 2X-scale text
   display.setTextColor(SSD1306_WHITE);
+  display.setFont(&FreeSans9pt7b);
 
-  display.setCursor(0,15);             // Start at top-left corner
+  display.setCursor(0,15);
   display.println("T");
+  display.setCursor(0,37);
   display.println("H");
+  display.setCursor(0,59);
   display.println("L");
 
-  display.setCursor(25,15);             // Start at top-left corner
-  display.setFont(&FreeSans9pt7b);
+  display.setCursor(25,15);
   display.println(temperature + " C");
-  display.drawCircle(60, 2, 2, WHITE);
+  display.drawCircle(63, 2, 2, WHITE);
+  display.setCursor(25,37);
   display.println(humidity + "%");
+  display.setCursor(25,59);
   display.println(light + "%");
 }
 
