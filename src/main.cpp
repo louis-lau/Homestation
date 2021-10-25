@@ -118,7 +118,10 @@ void loop() {
 
   light = String((int)((float) analogRead(A0)/1023.0*100.0));
 
+  boolean hall = !digitalRead(D3);
+
   drawDisplay(temperature, humidity, light);
+  display.invertDisplay(hall);
   display.display();
   delay(500);
 
