@@ -1,0 +1,26 @@
+{
+  "files.associations": {
+    "*.twig": "twig",
+    "string_view": "cpp",
+    "array": "cpp",
+    "atomic": "cpp",
+    "*.tcc": "cpp",
+    "concepts": "cpp",
+    "cstddef": "cpp",
+    "cwchar": "cpp",
+    "vector": "cpp",
+    "functional": "cpp",
+    "memory_resource": "cpp",
+    "optional": "cpp",
+    "type_traits": "cpp",
+    "random": "cpp",
+    "memory": "cpp",
+    "new": "cpp",
+    "ranges": "cpp",
+    "stdexcept": "cpp",
+    "system_error": "cpp",
+    "tuple": "cpp",
+    "typeinfo": "cpp",
+    "utility": "cpp"
+  }
+}
