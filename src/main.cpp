@@ -39,8 +39,21 @@ unsigned long lastTemperatureSend = millis();
 float temperature;
 int humidity;
 int light;
-boolean hall;
 float signalstrength;
+
+volatile unsigned long lastWindRotation = millis();
+volatile int currentRotationIndex = 0;
+volatile int timeBetweenRotations [10] = {};
+
+void IRAM_ATTR processWindRotation() {
+  timeBetweenRotations[currentRotationIndex] = millis() - lastWindRotation;
+  currentRotationIndex++;
+  if (currentRotationIndex > 10)
+  {
+    currentRotationIndex = 0;
+  }
+  lastWindRotation = millis();
+}
 
 void setup() {
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
@@ -48,6 +61,7 @@ void setup() {
     Serial.println(F("SSD1306 allocation failed"));
     for(;;); // Don't proceed, loop forever
   }
+  display.clearDisplay();
   Serial.begin(9600);
   Serial.println("Starting...");
 
@@ -127,6 +141,7 @@ void setup() {
   sensorLong.setValue(LONG, (uint8_t)15U);
 
   dht.begin();
+  attachInterrupt(digitalPinToInterrupt(D3), processWindRotation, FALLING);
 }
 
 void drawDisplay() {
@@ -182,7 +197,13 @@ void loop() {
 
   light = (int)((float) analogRead(A0)/1023.0*100.0);
 
-  hall = !digitalRead(D3);
+  int totalMs = 0;
+  for(int i = 0; i < 10; i++)
+  {
+    totalMs += timeBetweenRotations[i];
+  }
+  int averageMs = totalMs / 10;
+  Serial.println(1.0 / (float) averageMs * 1000 * 60); // Print rpm
 
   if ((millis() - lastTemperatureSend) > 10000) {
     sensorLight.setValue(light);
@@ -194,7 +215,6 @@ void loop() {
   }
 
   drawDisplay();
-  display.invertDisplay(hall);
   display.display();
   delay(500);
 
