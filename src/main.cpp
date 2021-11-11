@@ -42,6 +42,7 @@ unsigned long lastTemperatureSend = millis();
 float temperature;
 int humidity;
 int light;
+int wind;
 float signalstrength;
 
 volatile unsigned long lastWindRotation = millis();
@@ -190,10 +191,6 @@ void setup()
   startWindMonitor();
 }
 
-void connectMqtt()
-{
-}
-
 void drawDisplay()
 {
   display.clearDisplay();
@@ -206,20 +203,25 @@ void drawDisplay()
   display.println("T");
   display.setCursor(0, 37);
   display.println("H");
-  display.setCursor(0, 59);
+  display.setCursor(64, 37);
   display.println("L");
+  display.setCursor(0, 59);
+  display.println("W");
 
-  display.setCursor(25, 15);
+  display.setCursor(20, 15);
   String temperatureStr = String(temperature);
   temperatureStr[strlen(temperatureStr.c_str()) - 1] = '\0';
   display.println(temperatureStr + " C");
-  display.drawCircle(63, 2, 2, WHITE);
+  display.drawCircle(58, 2, 2, WHITE);
 
-  display.setCursor(25, 37);
+  display.setCursor(20, 37);
   display.println(String(humidity) + "%");
 
-  display.setCursor(25, 59);
+  display.setCursor(79, 37);
   display.println(String(light) + "%");
+
+  display.setCursor(20, 59);
+  display.println(String(wind) + "km/h");
 }
 
 bool wifiEnabled = true;
@@ -259,10 +261,10 @@ void loop()
   }
   int averageMs = totalMs / windMeasurementsAmount;
   int rpm = 1.0 / (float)averageMs * 1000 * 60;
-  float kmh = 863536.6 + (0.000242878 - 863536.6) / (1.0 + pow(rpm / 76999530.0, 0.8378296));
+  wind = 863536.6 + (0.000242878 - 863536.6) / (1.0 + pow(rpm / 76999530.0, 0.8378296));
   if (millis() - lastWindRotation > 2000)
   {
-    kmh = 0;
+    wind = 0;
   }
 
   if ((millis() - lastTemperatureSend) > 10000)
@@ -280,7 +282,7 @@ void loop()
     sensorTemperature.setValue(temperature);
     sensorHumidity.setValue(humidity);
     sensorSignalstrength.setValue(signalstrength);
-    sensorWind.setValue(kmh);
+    sensorWind.setValue(wind);
     mqtt.loop();
 
     lastTemperatureSend = millis();
