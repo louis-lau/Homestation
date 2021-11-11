@@ -90,6 +90,16 @@ void stopWindMonitor()
   detachInterrupt(D5);
 }
 
+void setLightBrightness(int brightness) {
+  WiFiClient yeelightClient;
+  if(!yeelightClient.connect("192.168.135.41", 55443)){
+    Serial.println("Failed connecting to yeelight");
+    return;
+  }
+  yeelightClient.println("{\"id\":1, \"method\": \"set_bright\", \"params\":[" + String(brightness) + ", \"smooth\", 1000]}");
+  yeelightClient.stop();
+}
+
 void setupMqtt()
 {
   // Set sensor and/or device names
@@ -295,6 +305,7 @@ void loop()
     {
       delay(500); // waiting for the connection
     }
+    setLightBrightness(100-light);
 
     setupMqtt();
     sensorLight.setValue(light);
