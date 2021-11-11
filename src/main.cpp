@@ -11,6 +11,7 @@
 #include <DHT_U.h>
 #include <ESP8266WiFi.h>
 #include <ArduinoHA.h>
+#include <cmath>
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
@@ -18,7 +19,8 @@
 #define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
 #define SCREEN_ADDRESS 0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-DHT dht(D7, DHT11);
+DHT dht(D6, DHT11);
+
 
 WiFiClient client;
 HADevice device;
@@ -34,6 +36,7 @@ HASensor sensorHumidity("Humidity");
 HASensor sensorSignalstrength("Signal_strength");
 HASensor sensorLight("Illuminance");
 
+const int windMeasurementsAmount = 100;
 
 unsigned long lastTemperatureSend = millis();
 float temperature;
@@ -43,42 +46,44 @@ float signalstrength;
 
 volatile unsigned long lastWindRotation = millis();
 volatile int currentRotationIndex = 0;
-volatile int timeBetweenRotations [10] = {};
+volatile int timeBetweenRotations [windMeasurementsAmount] = {};
+volatile int lastTimeBetweenRotations;
 
 void IRAM_ATTR processWindRotation() {
+  int time = millis() - lastWindRotation;
   timeBetweenRotations[currentRotationIndex] = millis() - lastWindRotation;
+  lastTimeBetweenRotations = timeBetweenRotations[currentRotationIndex];
   currentRotationIndex++;
-  if (currentRotationIndex > 10)
+  if (currentRotationIndex > windMeasurementsAmount)
   {
     currentRotationIndex = 0;
   }
   lastWindRotation = millis();
 }
 
-void setup() {
-  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
-    Serial.println(F("SSD1306 allocation failed"));
-    for(;;); // Don't proceed, loop forever
+void startWindMonitor() {
+  int start = millis();
+  while (digitalRead(D5) && millis() - start < 1000)
+  {
+    // wait until low, max 1 sec
   }
-  display.clearDisplay();
-  Serial.begin(9600);
-  Serial.println("Starting...");
+  
+  lastWindRotation = millis();
 
-  // Unique ID must be set!
-  byte mac[WL_MAC_ADDR_LENGTH];
-  WiFi.macAddress(mac);
-  device.setUniqueId(mac, sizeof(mac));
-
-  // Connect to wifi
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  while (WiFi.status() != WL_CONNECTED) {
-      Serial.print(".");
-      delay(500); // waiting for the connection
+  start = millis();
+  while (!digitalRead(D5) && millis() - start < 1000)
+  {
+    // wait until high again, max 1 sec
   }
-  Serial.println();
-  Serial.println("Connected to the network");
 
+  attachInterrupt(digitalPinToInterrupt(D5), processWindRotation, FALLING);
+}
+
+void stopWindMonitor() {
+  detachInterrupt(D5);
+}
+
+void setupMqtt() {
   // Set sensor and/or device names
   // String conversion for incoming data from Secret.h
   String student_id = STUDENT_ID;
@@ -139,9 +144,42 @@ void setup() {
 
   sensorLat.setValue(LAT, (uint8_t)15U);
   sensorLong.setValue(LONG, (uint8_t)15U);
+}
 
+void setup() {
+  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
+  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+    Serial.println(F("SSD1306 allocation failed"));
+    for(;;); // Don't proceed, loop forever
+  }
+  display.clearDisplay();
+  display.setRotation(2);
+  Serial.begin(9600);
+  Serial.println("Starting...");
+
+  // Unique ID must be set!
+  byte mac[WL_MAC_ADDR_LENGTH];
+  WiFi.macAddress(mac);
+  device.setUniqueId(mac, sizeof(mac));
+
+  // Connect to wifi
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  while (WiFi.status() != WL_CONNECTED) {
+      Serial.print(".");
+      delay(500); // waiting for the connection
+  }
+  Serial.println();
+  Serial.println("Connected to the network");
+
+
+  setupMqtt();
   dht.begin();
-  attachInterrupt(digitalPinToInterrupt(D3), processWindRotation, FALLING);
+  pinMode(D5, INPUT_PULLUP);
+  startWindMonitor();
+}
+
+void connectMqtt() {
+
 }
 
 void drawDisplay() {
@@ -171,9 +209,10 @@ void drawDisplay() {
   display.println(String(light) + "%");
 }
 
+bool wifiEnabled = true;
+
 
 void loop() {
-  mqtt.loop();
   signalstrength = WiFi.RSSI();
 
 
@@ -198,20 +237,35 @@ void loop() {
   light = (int)((float) analogRead(A0)/1023.0*100.0);
 
   int totalMs = 0;
-  for(int i = 0; i < 10; i++)
+  for(int i = 0; i < windMeasurementsAmount; i++)
   {
     totalMs += timeBetweenRotations[i];
   }
-  int averageMs = totalMs / 10;
-  Serial.println(1.0 / (float) averageMs * 1000 * 60); // Print rpm
+  int averageMs = totalMs / windMeasurementsAmount;
+  int rpm = 1.0 / (float) averageMs * 1000 * 60;
+  float kmh = 863536.6 + (0.000242878 - 863536.6)/(1.0 + pow(rpm/76999530.0, 0.8378296));
+  Serial.println(kmh);
 
   if ((millis() - lastTemperatureSend) > 10000) {
+    stopWindMonitor();
+    WiFi.forceSleepWake();
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    while (WiFi.status() != WL_CONNECTED) {
+      delay(500); // waiting for the connection
+    }
+    
+    setupMqtt();
     sensorLight.setValue(light);
     sensorTemperature.setValue(temperature);
     sensorHumidity.setValue(humidity);
     sensorSignalstrength.setValue(signalstrength);
+    mqtt.loop();
 
     lastTemperatureSend = millis();
+    mqtt.disconnect();
+    WiFi.disconnect();
+    WiFi.forceSleepBegin();
+    startWindMonitor();
   }
 
   drawDisplay();
