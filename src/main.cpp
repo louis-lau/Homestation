@@ -35,6 +35,7 @@ HASensor sensorTemperature("Temperature");
 HASensor sensorHumidity("Humidity");
 HASensor sensorSignalstrength("Signal_strength");
 HASensor sensorLight("Illuminance");
+HASensor sensorWind("Wind");
 
 const int windMeasurementsAmount = 100;
 
@@ -97,6 +98,7 @@ void setupMqtt() {
   String temperatureName = student_id + " Temperature";
   String humidityName = student_id + " Humidity";
   String lightName = student_id + " Illuminance";
+  String windName = student_id + " Wind";
   String signalstrengthName = student_id + " Signal Strength";
 
   //Set main device name
@@ -128,6 +130,9 @@ void setupMqtt() {
   sensorLight.setName(lightName.c_str());
   sensorLight.setDeviceClass("illuminance");
   sensorLight.setUnitOfMeasurement("%");
+
+  sensorWind.setName(windName.c_str());
+  sensorWind.setUnitOfMeasurement("km/h");
 
   mqtt.begin(BROKER_ADDR, BROKER_USERNAME, BROKER_PASSWORD);
 
@@ -244,7 +249,10 @@ void loop() {
   int averageMs = totalMs / windMeasurementsAmount;
   int rpm = 1.0 / (float) averageMs * 1000 * 60;
   float kmh = 863536.6 + (0.000242878 - 863536.6)/(1.0 + pow(rpm/76999530.0, 0.8378296));
-  Serial.println(kmh);
+  if (millis() - lastWindRotation > 2000)
+  {
+    kmh = 0;
+  }
 
   if ((millis() - lastTemperatureSend) > 10000) {
     stopWindMonitor();
@@ -259,6 +267,7 @@ void loop() {
     sensorTemperature.setValue(temperature);
     sensorHumidity.setValue(humidity);
     sensorSignalstrength.setValue(signalstrength);
+    sensorWind.setValue(kmh);
     mqtt.loop();
 
     lastTemperatureSend = millis();
