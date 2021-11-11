@@ -36,12 +36,15 @@ HASensor sensorSignalstrength("Signal_strength");
 HASensor sensorLight("Illuminance");
 HASensor sensorWind("Wind");
 
-const int windMeasurementsAmount = 100;
+const int windMeasurementsAmount = 50;
+const int lightMeasurementsAmount = 10;
 
 unsigned long lastTemperatureSend = millis();
 float temperature;
 int humidity;
 int light;
+int currentLightMeasurementIndex = 0;
+int lightMeasurements[lightMeasurementsAmount] = {};
 int wind;
 float signalstrength;
 
@@ -252,7 +255,23 @@ void loop()
     humidity = (int)dhtHumidity;
   }
 
-  light = (int)((float)analogRead(A0) / 1023.0 * 100.0);
+  int lightMeasurement = ((float)analogRead(A0)) / 1023.0 * 100.0;
+  lightMeasurements[currentLightMeasurementIndex] = lightMeasurement;
+  if (currentLightMeasurementIndex < lightMeasurementsAmount)
+  {
+    currentLightMeasurementIndex++;
+  }
+  else
+  {
+    currentLightMeasurementIndex = 0;
+  }
+
+  int totalLight = 0;
+  for (int i = 0; i < lightMeasurementsAmount; i++)
+  {
+    totalLight += lightMeasurements[i];
+  }
+  light = totalLight / lightMeasurementsAmount;
 
   int totalMs = 0;
   for (int i = 0; i < windMeasurementsAmount; i++)
@@ -267,7 +286,7 @@ void loop()
     wind = 0;
   }
 
-  if ((millis() - lastTemperatureSend) > 10000)
+  if ((millis() - lastTemperatureSend) > 25000)
   {
     stopWindMonitor();
     WiFi.forceSleepWake();
