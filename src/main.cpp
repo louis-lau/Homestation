@@ -16,11 +16,10 @@
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 
-#define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
+#define OLED_RESET -1       // Reset pin # (or -1 if sharing Arduino reset pin)
 #define SCREEN_ADDRESS 0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 DHT dht(D6, DHT11);
-
 
 WiFiClient client;
 HADevice device;
@@ -47,10 +46,11 @@ float signalstrength;
 
 volatile unsigned long lastWindRotation = millis();
 volatile int currentRotationIndex = 0;
-volatile int timeBetweenRotations [windMeasurementsAmount] = {};
+volatile int timeBetweenRotations[windMeasurementsAmount] = {};
 volatile int lastTimeBetweenRotations;
 
-void IRAM_ATTR processWindRotation() {
+void IRAM_ATTR processWindRotation()
+{
   int time = millis() - lastWindRotation;
   timeBetweenRotations[currentRotationIndex] = millis() - lastWindRotation;
   lastTimeBetweenRotations = timeBetweenRotations[currentRotationIndex];
@@ -62,13 +62,14 @@ void IRAM_ATTR processWindRotation() {
   lastWindRotation = millis();
 }
 
-void startWindMonitor() {
+void startWindMonitor()
+{
   int start = millis();
   while (digitalRead(D5) && millis() - start < 1000)
   {
     // wait until low, max 1 sec
   }
-  
+
   lastWindRotation = millis();
 
   start = millis();
@@ -80,11 +81,13 @@ void startWindMonitor() {
   attachInterrupt(digitalPinToInterrupt(D5), processWindRotation, FALLING);
 }
 
-void stopWindMonitor() {
+void stopWindMonitor()
+{
   detachInterrupt(D5);
 }
 
-void setupMqtt() {
+void setupMqtt()
+{
   // Set sensor and/or device names
   // String conversion for incoming data from Secret.h
   String student_id = STUDENT_ID;
@@ -114,7 +117,7 @@ void setupMqtt() {
   sensorLong.setIcon("mdi:crosshairs-gps");
   sensorLat.setName(latName.c_str());
   sensorLat.setIcon("mdi:crosshairs-gps");
-  
+
   sensorTemperature.setName(temperatureName.c_str());
   sensorTemperature.setDeviceClass("temperature");
   sensorTemperature.setUnitOfMeasurement("°C");
@@ -122,7 +125,7 @@ void setupMqtt() {
   sensorHumidity.setName(humidityName.c_str());
   sensorHumidity.setDeviceClass("humidity");
   sensorHumidity.setUnitOfMeasurement("%");
-  
+
   sensorSignalstrength.setName(signalstrengthName.c_str());
   sensorSignalstrength.setDeviceClass("signal_strength");
   sensorSignalstrength.setUnitOfMeasurement("dBm");
@@ -136,10 +139,11 @@ void setupMqtt() {
 
   mqtt.begin(BROKER_ADDR, BROKER_USERNAME, BROKER_PASSWORD);
 
-  while (!mqtt.isConnected()) {
-        mqtt.loop();
-        Serial.print(".");
-        delay(500); // waiting for the connection
+  while (!mqtt.isConnected())
+  {
+    mqtt.loop();
+    Serial.print(".");
+    delay(500); // waiting for the connection
   }
 
   Serial.println();
@@ -151,11 +155,14 @@ void setupMqtt() {
   sensorLong.setValue(LONG, (uint8_t)15U);
 }
 
-void setup() {
+void setup()
+{
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+  if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS))
+  {
     Serial.println(F("SSD1306 allocation failed"));
-    for(;;); // Don't proceed, loop forever
+    for (;;)
+      ; // Don't proceed, loop forever
   }
   display.clearDisplay();
   display.setRotation(2);
@@ -169,13 +176,13 @@ void setup() {
 
   // Connect to wifi
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  while (WiFi.status() != WL_CONNECTED) {
-      Serial.print(".");
-      delay(500); // waiting for the connection
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    Serial.print(".");
+    delay(500); // waiting for the connection
   }
   Serial.println();
   Serial.println("Connected to the network");
-
 
   setupMqtt();
   dht.begin();
@@ -183,85 +190,91 @@ void setup() {
   startWindMonitor();
 }
 
-void connectMqtt() {
-
+void connectMqtt()
+{
 }
 
-void drawDisplay() {
+void drawDisplay()
+{
   display.clearDisplay();
 
-  display.setTextSize(1);             // Draw 2X-scale text
+  display.setTextSize(1); // Draw 2X-scale text
   display.setTextColor(SSD1306_WHITE);
   display.setFont(&FreeSans9pt7b);
 
-  display.setCursor(0,15);
+  display.setCursor(0, 15);
   display.println("T");
-  display.setCursor(0,37);
+  display.setCursor(0, 37);
   display.println("H");
-  display.setCursor(0,59);
+  display.setCursor(0, 59);
   display.println("L");
 
-  display.setCursor(25,15);
+  display.setCursor(25, 15);
   String temperatureStr = String(temperature);
-  temperatureStr[strlen(temperatureStr.c_str())-1] = '\0';
+  temperatureStr[strlen(temperatureStr.c_str()) - 1] = '\0';
   display.println(temperatureStr + " C");
   display.drawCircle(63, 2, 2, WHITE);
 
-  display.setCursor(25,37);
+  display.setCursor(25, 37);
   display.println(String(humidity) + "%");
 
-  display.setCursor(25,59);
+  display.setCursor(25, 59);
   display.println(String(light) + "%");
 }
 
 bool wifiEnabled = true;
 
-
-void loop() {
+void loop()
+{
   signalstrength = WiFi.RSSI();
-
 
   float dhtTemperature = dht.readTemperature();
   float dhtHumidity = dht.readHumidity();
-  
-  if (isnan(dhtTemperature)) {
+
+  if (isnan(dhtTemperature))
+  {
     temperature = -1;
   }
-  else {
+  else
+  {
     String string = String(dhtTemperature);
-    string[strlen(string.c_str())-1] = '\0';
+    string[strlen(string.c_str()) - 1] = '\0';
     temperature = dhtTemperature;
   }
-  if (isnan(dhtHumidity)) {
+  if (isnan(dhtHumidity))
+  {
     humidity = -1;
   }
-  else {
-    humidity = (int) dhtHumidity;
+  else
+  {
+    humidity = (int)dhtHumidity;
   }
 
-  light = (int)((float) analogRead(A0)/1023.0*100.0);
+  light = (int)((float)analogRead(A0) / 1023.0 * 100.0);
 
   int totalMs = 0;
-  for(int i = 0; i < windMeasurementsAmount; i++)
+  for (int i = 0; i < windMeasurementsAmount; i++)
   {
     totalMs += timeBetweenRotations[i];
   }
   int averageMs = totalMs / windMeasurementsAmount;
-  int rpm = 1.0 / (float) averageMs * 1000 * 60;
-  float kmh = 863536.6 + (0.000242878 - 863536.6)/(1.0 + pow(rpm/76999530.0, 0.8378296));
+  int rpm = 1.0 / (float)averageMs * 1000 * 60;
+  float kmh = 863536.6 + (0.000242878 - 863536.6) / (1.0 + pow(rpm / 76999530.0, 0.8378296));
   if (millis() - lastWindRotation > 2000)
   {
     kmh = 0;
   }
 
-  if ((millis() - lastTemperatureSend) > 10000) {
+  if ((millis() - lastTemperatureSend) > 10000)
+  {
     stopWindMonitor();
     WiFi.forceSleepWake();
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    while (WiFi.status() != WL_CONNECTED) {
+    while (WiFi.status() != WL_CONNECTED)
+    {
       delay(500); // waiting for the connection
     }
-    
+
     setupMqtt();
     sensorLight.setValue(light);
     sensorTemperature.setValue(temperature);
@@ -280,5 +293,4 @@ void loop() {
   drawDisplay();
   display.display();
   delay(500);
-
 }
